@@ -1,0 +1,14 @@
+{
+  "name": "studiospace-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root workspace runner for StudioSpace client (Next.js) and server (Express + MongoDB)",
+  "scripts": {
+    "dev": "node dev.mjs",
+    "dev:server": "npm --prefix studiospace-server run dev",
+    "dev:client": "npm --prefix studiospace-client run dev",
+    "build": "npm --prefix studiospace-server run build && npm --prefix studiospace-client run build",
+    "lint": "npm --prefix studiospace-client run lint"
+  }
+}
+
