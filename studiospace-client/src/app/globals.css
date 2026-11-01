@@ -1,0 +1,383 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: false;
+  logs: false;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   StudioSpace design system
+   Two DaisyUI themes (dark = "Cinema", light = "Daylight") share
+   the same brand: spotlight amber → ember coral, with violet depth.
+   ────────────────────────────────────────────────────────────── */
+@plugin "daisyui/theme" {
+  name: "studiodark";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #0b0a10;
+  --color-base-200: #121118;
+  --color-base-300: #1c1a25;
+  --color-base-content: #f3efe7;
+  --color-primary: #ffb02e;
+  --color-primary-content: #1c1203;
+  --color-secondary: #8b5cf6;
+  --color-secondary-content: #ffffff;
+  --color-accent: #2dd4bf;
+  --color-accent-content: #04201c;
+  --color-neutral: #231f2e;
+  --color-neutral-content: #f3efe7;
+  --color-info: #38bdf8;
+  --color-info-content: #031a26;
+  --color-success: #34d399;
+  --color-success-content: #03180f;
+  --color-warning: #fbbf24;
+  --color-warning-content: #1d1403;
+  --color-error: #fb7185;
+  --color-error-content: #240509;
+  --radius-selector: 1rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "studiolight";
+  default: false;
+  prefersdark: false;
+  color-scheme: light;
+  --color-base-100: #fbf8f3;
+  --color-base-200: #f3eee5;
+  --color-base-300: #e6dfd1;
+  --color-base-content: #1b1722;
+  --color-primary: #e98a0c;
+  --color-primary-content: #1c1203;
+  --color-secondary: #7c3aed;
+  --color-secondary-content: #ffffff;
+  --color-accent: #0d9488;
+  --color-accent-content: #ffffff;
+  --color-neutral: #1b1722;
+  --color-neutral-content: #fbf8f3;
+  --color-info: #0284c7;
+  --color-info-content: #ffffff;
+  --color-success: #059669;
+  --color-success-content: #ffffff;
+  --color-warning: #d97706;
+  --color-warning-content: #ffffff;
+  --color-error: #e11d48;
+  --color-error-content: #ffffff;
+  --radius-selector: 1rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@custom-variant dark (&:where([data-theme="studiodark"], [data-theme="studiodark"] *));
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-outfit), var(--font-inter), ui-sans-serif, sans-serif;
+  --color-ember: #ff6b4a;
+  --color-spot: #ffb02e;
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-fade-up: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pulse-ring: pulse-ring 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  --animate-marquee: marquee 38s linear infinite;
+  --animate-spin-slow: spin 14s linear infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-primary) 45%, transparent); }
+  80%, 100% { box-shadow: 0 0 0 18px transparent; }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* ───────────── Base ───────────── */
+:root {
+  --brand-gradient: linear-gradient(135deg, #ffb02e 0%, #ff6b4a 100%);
+  --brand-gradient-soft: linear-gradient(135deg, color-mix(in oklab, #ffb02e 18%, transparent), color-mix(in oklab, #ff6b4a 14%, transparent));
+  --header-h: 4.5rem;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--header-h) + 1rem);
+}
+
+body {
+  background-color: var(--color-base-100);
+  color: var(--color-base-content);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-outfit), var(--font-inter), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-primary) 40%, transparent);
+}
+
+/* Custom scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-base-content) 25%, transparent) transparent;
+}
+
+/* ───────────── Layout helpers ───────────── */
+.container-page {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+@media (min-width: 1024px) {
+  .container-page { padding-inline: 2rem; }
+}
+
+.section {
+  padding-block: 5rem;
+}
+@media (min-width: 1024px) {
+  .section { padding-block: 7rem; }
+}
+
+/* One consistent heading style for every section */
+.section-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+.section-eyebrow::before {
+  content: "";
+  width: 1.75rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand-gradient);
+}
+.section-title {
+  font-family: var(--font-outfit), sans-serif;
+  font-weight: 700;
+  font-size: clamp(2rem, 4.2vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--color-base-content);
+}
+.section-subtitle {
+  max-width: 40rem;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+}
+
+.text-gradient {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ───────────── Buttons (one style site-wide) ───────────── */
+.btn-brand {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.6rem;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 650;
+  font-size: 0.95rem;
+  color: #1c1203;
+  background: var(--brand-gradient);
+  box-shadow: 0 10px 30px -10px color-mix(in oklab, #ff6b4a 70%, transparent);
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, filter 0.25s ease;
+}
+.btn-brand:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 16px 36px -10px color-mix(in oklab, #ff6b4a 85%, transparent);
+}
+.btn-brand:active { transform: translateY(0) scale(0.98); }
+.btn-brand:disabled, .btn-brand[aria-disabled="true"] {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.btn-brand-sm { min-height: 2.5rem; padding: 0 1.2rem; font-size: 0.875rem; }
+
+.btn-outline-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 1.6rem;
+  border-radius: 999px;
+  font-weight: 650;
+  font-size: 0.95rem;
+  color: var(--color-base-content);
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 22%, transparent);
+  background: color-mix(in oklab, var(--color-base-content) 4%, transparent);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.25s ease, background 0.25s ease;
+}
+.btn-outline-brand:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+  background: color-mix(in oklab, var(--color-primary) 10%, transparent);
+}
+.btn-outline-brand.btn-sm { min-height: 2.5rem; padding: 0 1.2rem; font-size: 0.875rem; }
+
+/* ───────────── Surfaces ───────────── */
+.glass {
+  background: color-mix(in oklab, var(--color-base-200) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent);
+}
+
+.card-surface {
+  background: var(--color-base-200);
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 9%, transparent);
+  border-radius: 1.25rem;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, box-shadow 0.35s ease;
+}
+.card-surface:hover {
+  transform: translateY(-6px);
+  border-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  box-shadow: 0 24px 50px -24px color-mix(in oklab, var(--color-primary) 40%, transparent);
+}
+
+.glow-border {
+  position: relative;
+}
+.glow-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, color-mix(in oklab, #ffb02e 70%, transparent), transparent 40%, color-mix(in oklab, #8b5cf6 60%, transparent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Spotlight / aurora backgrounds */
+.bg-spotlight {
+  background:
+    radial-gradient(60rem 30rem at 15% -10%, color-mix(in oklab, #ffb02e 20%, transparent), transparent 60%),
+    radial-gradient(48rem 28rem at 95% 10%, color-mix(in oklab, #8b5cf6 22%, transparent), transparent 60%),
+    var(--color-base-100);
+}
+.bg-grid {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--color-base-content) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--color-base-content) 6%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+}
+
+/* ───────────── Skeleton loaders (branded) ───────────── */
+.skeleton-brand {
+  border-radius: 0.75rem;
+  background: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--color-base-content) 7%, transparent) 30%,
+    color-mix(in oklab, var(--color-primary) 18%, transparent) 50%,
+    color-mix(in oklab, var(--color-base-content) 7%, transparent) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* ───────────── Nav ───────────── */
+.nav-link {
+  position: relative;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.92rem;
+  font-weight: 550;
+  color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
+  transition: color 0.2s ease;
+}
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand-gradient);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-link:hover { color: var(--color-base-content); }
+.nav-link:hover::after, .nav-link[data-active="true"]::after { transform: scaleX(1); }
+.nav-link[data-active="true"] { color: var(--color-base-content); }
+
+/* Form fields */
+.field {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.85rem;
+  color: var(--color-base-content);
+  background: color-mix(in oklab, var(--color-base-content) 5%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 14%, transparent);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.field::placeholder { color: color-mix(in oklab, var(--color-base-content) 40%, transparent); }
+.field:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-primary) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
