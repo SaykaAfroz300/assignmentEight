@@ -20,8 +20,10 @@ export function createApp() {
   app.use(
     cors({
       origin(origin, cb) {
-        // Allow same-origin / server-to-server calls (no Origin header) and whitelisted clients.
-        if (!origin || env.clientOrigins.includes(origin)) return cb(null, true);
+        // Allow same-origin / server-to-server calls (no Origin header), whitelisted clients, and Vercel deployments.
+        if (!origin || env.clientOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+          return cb(null, true);
+        }
         cb(new Error(`Origin ${origin} not allowed by CORS`));
       },
       credentials: true, // required so the browser sends the HTTPOnly JWT cookie

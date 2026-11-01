@@ -9,13 +9,30 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 const googleConfigured = Boolean(googleClientId && googleClientSecret);
 
+const resolvedBaseUrl = (
+  process.env.BETTER_AUTH_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000")
+)
+  .trim()
+  .replace(/\/$/, "");
+
 /** Server-side BetterAuth instance (MongoDB adapter, email+password, Google). */
 export const auth = betterAuth({
   appName: "StudioSpace",
-  baseURL: (process.env.BETTER_AUTH_URL || "http://localhost:3000").trim(),
-  secret: process.env.BETTER_AUTH_SECRET?.trim(),
+  baseURL: resolvedBaseUrl,
+  secret: (
+    process.env.BETTER_AUTH_SECRET || "studiospace-better-auth-secret-32chars-minimum-key"
+  ).trim(),
   database: mongodbAdapter(authDb),
-  trustedOrigins: [(process.env.BETTER_AUTH_URL || "http://localhost:3000").trim()],
+  trustedOrigins: [
+    resolvedBaseUrl,
+    "http://localhost:3000",
+    "https://*.vercel.app",
+  ],
 
   emailAndPassword: {
     enabled: true,
