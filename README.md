@@ -1,9 +1,7 @@
 # StudioSpace — Peer-to-Peer Creative Workspace & Production Studio Sharing Platform
 
 **Assignment Variant:** `B14-A8-Cat_Harry`  
-**Live Website URL:** [https://studiospace-client.vercel.app](https://studiospace-client.vercel.app)  
-**Backend API URL:** [https://studiospace-server.vercel.app](https://studiospace-server.vercel.app)
-
+**Live Website URL:** https://assignmenteight-studiospace-client.vercel.app/
 StudioSpace is a high-performance peer-to-peer marketplace built for creators, filmmakers, photographers, podcasters, and musicians. Studio hosts can list their creative rooms—from photography infinity cyc lofts and acoustic cinema soundstages to 4K podcast lounges, Dolby Atmos music suites, and industrial art workshops—while fellow creators discover, filter, inspect dynamic slot availability, and book studio hours with transparent pricing.
 
 ---
