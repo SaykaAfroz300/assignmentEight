@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
+import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { CheckCircle2, Loader2, UserPlus, X } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { refreshApiToken } from "@/lib/api";
@@ -73,25 +74,34 @@ export default function GoogleButton({
   callbackURL?: string;
   label?: string;
 }) {
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const [busy, setBusy] = useState(false);
-  const [chooserOpen, setChooserOpen] = useState(false);
+  const [chooserOpen, setChooserOpen] = useState(
+    () => searchParams.get("googleChooser") === "1" || Boolean(searchParams.get("error"))
+  );
   const [signingInEmail, setSigningInEmail] = useState<string | null>(null);
   const [customMode, setCustomMode] = useState(false);
   const [customName, setCustomName] = useState("");
   const [customEmail, setCustomEmail] = useState("");
 
   async function onClick() {
-    const hasPublicGoogleId = Boolean(process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true");
-    if (!hasPublicGoogleId) {
+    const forceOAuthRedirect =
+      Boolean(process.env.NEXT_PUBLIC_GOOGLE_OAUTH_REDIRECT === "true") &&
+      searchParams.get("googleChooser") !== "1";
+    if (!forceOAuthRedirect) {
       setChooserOpen(true);
       return;
     }
+    await startGoogleOAuthRedirect();
+  }
+
+  async function startGoogleOAuthRedirect() {
     setBusy(true);
     try {
       const res = await authClient.signIn.social({
         provider: "google",
         callbackURL,
+        errorCallbackURL: "/login?googleChooser=1",
       });
       if (res?.error) {
         setBusy(false);
@@ -113,10 +123,24 @@ export default function GoogleButton({
     setSigningInEmail(account.email);
     try {
       const cleanEmail = account.email.trim().toLowerCase();
-      let signInRes = await authClient.signIn.email({
-        email: cleanEmail,
-        password: account.secretPass,
-      });
+      const customHeaders = {
+        "x-google-chooser": "true",
+        "x-google-name": encodeURIComponent(account.name.trim()),
+        "x-google-avatar": encodeURIComponent(account.avatar || ""),
+      };
+
+      let signInRes = await authClient.signIn.email(
+        {
+          email: cleanEmail,
+          password: account.secretPass,
+          fetchOptions: {
+            headers: customHeaders,
+          },
+        },
+        {
+          headers: customHeaders,
+        }
+      );
 
       if (signInRes.error) {
         await authClient.signUp.email({
@@ -125,10 +149,18 @@ export default function GoogleButton({
           password: account.secretPass,
           image: account.avatar,
         });
-        signInRes = await authClient.signIn.email({
-          email: cleanEmail,
-          password: account.secretPass,
-        });
+        signInRes = await authClient.signIn.email(
+          {
+            email: cleanEmail,
+            password: account.secretPass,
+            fetchOptions: {
+              headers: customHeaders,
+            },
+          },
+          {
+            headers: customHeaders,
+          }
+        );
       }
 
       if (signInRes.error) {
@@ -140,17 +172,16 @@ export default function GoogleButton({
       await refreshApiToken();
       toast.success(`Signed in with Google as ${account.name}!`);
       setChooserOpen(false);
-      router.replace(callbackURL || "/");
-      router.refresh();
+      window.location.assign(callbackURL || "/");
     } catch {
       toast.error("Failed to complete Google sign-in. Please check your connection.");
-    } finally {
       setSigningInEmail(null);
     }
   }
 
-  function handleCustomGoogleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleCustomGoogleSubmit(e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (customName.trim().length < 2) {
       toast.error("Please enter your name.");
       return;
@@ -166,6 +197,189 @@ export default function GoogleButton({
     });
   }
 
+  function handleCustomKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      handleCustomGoogleSubmit(e);
+    }
+  }
+
+  const modalContent = (
+    <AnimatePresence>
+      {chooserOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="google-chooser-title"
+          className="fixed inset-0 z-50 grid place-items-center p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !signingInEmail && setChooserOpen(false)}
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm"
+          />
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ duration: 0.2 }}
+            className="card-surface glow-border relative z-10 w-full max-w-md overflow-hidden p-6 shadow-2xl"
+          >
+            <button
+              type="button"
+              onClick={() => !signingInEmail && setChooserOpen(false)}
+              aria-label="Close Google sign-in"
+              className="absolute right-4 top-4 grid size-9 place-items-center rounded-full border border-base-content/15 text-base-content/70 transition hover:border-primary hover:text-base-content"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <span className="grid size-11 place-items-center rounded-2xl bg-white shadow-md">
+                <GoogleLogo size={24} />
+              </span>
+              <div>
+                <h3
+                  id="google-chooser-title"
+                  className="font-display text-xl font-bold text-base-content"
+                >
+                  Sign in with Google
+                </h3>
+                <p className="text-xs text-base-content/65">
+                  Choose an account to continue to <strong>StudioSpace</strong>
+                </p>
+              </div>
+            </div>
+
+            {!customMode ? (
+              <div className="mt-5 space-y-2.5">
+                {GOOGLE_ACCOUNTS.map((acc) => {
+                  const isLoading = signingInEmail === acc.email;
+                  return (
+                    <button
+                      key={acc.email}
+                      type="button"
+                      disabled={Boolean(signingInEmail)}
+                      onClick={() => void signInWithGoogleAccount(acc)}
+                      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-base-content/12 bg-base-content/5 p-3.5 text-left transition hover:border-primary hover:bg-primary/10 disabled:opacity-60"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={acc.avatar}
+                          alt={acc.name}
+                          className="size-10 shrink-0 rounded-full object-cover ring-2 ring-primary/40"
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-base-content">
+                            {acc.name}
+                          </p>
+                          <p className="truncate text-xs text-base-content/60">
+                            {acc.email}
+                          </p>
+                          <p className="truncate text-[11px] font-medium text-primary">
+                            {acc.role}
+                          </p>
+                        </div>
+                      </div>
+                      {isLoading ? (
+                        <Loader2 size={18} className="shrink-0 animate-spin text-primary" />
+                      ) : (
+                        <CheckCircle2 size={17} className="shrink-0 text-base-content/35" />
+                      )}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => setCustomMode(true)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-base-content/20 px-4 py-3 text-xs font-semibold text-base-content/75 transition hover:border-primary hover:text-primary"
+                >
+                  <UserPlus size={16} />
+                  Use another Google account
+                </button>
+
+                {process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true" && (
+                  <button
+                    type="button"
+                    disabled={Boolean(signingInEmail) || busy}
+                    onClick={() => void startGoogleOAuthRedirect()}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl pt-1 text-[11px] font-medium text-base-content/50 transition hover:text-primary"
+                  >
+                    <ExternalLink size={12} />
+                    Redirect to Google OAuth consent screen
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="mt-5 space-y-3.5" role="group" aria-label="Custom Google account">
+                <div>
+                  <label
+                    htmlFor="google-custom-name"
+                    className="mb-1 block text-xs font-semibold"
+                  >
+                    Your Full Name
+                  </label>
+                  <input
+                    id="google-custom-name"
+                    type="text"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    onKeyDown={handleCustomKeyDown}
+                    placeholder="e.g., Sumaiya Afroze"
+                    required
+                    className="field"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="google-custom-email"
+                    className="mb-1 block text-xs font-semibold"
+                  >
+                    Google Email Address
+                  </label>
+                  <input
+                    id="google-custom-email"
+                    type="email"
+                    value={customEmail}
+                    onChange={(e) => setCustomEmail(e.target.value)}
+                    onKeyDown={handleCustomKeyDown}
+                    placeholder="you@gmail.com"
+                    required
+                    className="field"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCustomMode(false)}
+                    className="btn-outline-brand btn-sm"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCustomGoogleSubmit}
+                    disabled={Boolean(signingInEmail)}
+                    className="btn-brand btn-brand-sm"
+                  >
+                    {signingInEmail && <Loader2 size={15} className="animate-spin" />}
+                    Continue with Google
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
     <>
       <button
@@ -179,163 +393,7 @@ export default function GoogleButton({
         {label}
       </button>
 
-      <AnimatePresence>
-        {chooserOpen && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="google-chooser-title"
-            className="fixed inset-0 z-50 grid place-items-center p-4"
-          >
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => !signingInEmail && setChooserOpen(false)}
-              className="fixed inset-0 bg-black/75 backdrop-blur-sm"
-            />
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              transition={{ duration: 0.2 }}
-              className="card-surface glow-border relative z-10 w-full max-w-md overflow-hidden p-6 shadow-2xl"
-            >
-              <button
-                type="button"
-                onClick={() => !signingInEmail && setChooserOpen(false)}
-                aria-label="Close Google sign-in"
-                className="absolute right-4 top-4 grid size-9 place-items-center rounded-full border border-base-content/15 text-base-content/70 transition hover:border-primary hover:text-base-content"
-              >
-                <X size={16} />
-              </button>
-
-              <div className="flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-2xl bg-white shadow-md">
-                  <GoogleLogo size={24} />
-                </span>
-                <div>
-                  <h3
-                    id="google-chooser-title"
-                    className="font-display text-xl font-bold text-base-content"
-                  >
-                    Sign in with Google
-                  </h3>
-                  <p className="text-xs text-base-content/65">
-                    Choose an account to continue to <strong>StudioSpace</strong>
-                  </p>
-                </div>
-              </div>
-
-              {!customMode ? (
-                <div className="mt-5 space-y-2.5">
-                  {GOOGLE_ACCOUNTS.map((acc) => {
-                    const isLoading = signingInEmail === acc.email;
-                    return (
-                      <button
-                        key={acc.email}
-                        type="button"
-                        disabled={Boolean(signingInEmail)}
-                        onClick={() => void signInWithGoogleAccount(acc)}
-                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-base-content/12 bg-base-content/5 p-3.5 text-left transition hover:border-primary hover:bg-primary/10 disabled:opacity-60"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={acc.avatar}
-                            alt={acc.name}
-                            className="size-10 shrink-0 rounded-full object-cover ring-2 ring-primary/40"
-                          />
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold text-base-content">
-                              {acc.name}
-                            </p>
-                            <p className="truncate text-xs text-base-content/60">
-                              {acc.email}
-                            </p>
-                            <p className="truncate text-[11px] font-medium text-primary">
-                              {acc.role}
-                            </p>
-                          </div>
-                        </div>
-                        {isLoading ? (
-                          <Loader2 size={18} className="shrink-0 animate-spin text-primary" />
-                        ) : (
-                          <CheckCircle2 size={17} className="shrink-0 text-base-content/35" />
-                        )}
-                      </button>
-                    );
-                  })}
-
-                  <button
-                    type="button"
-                    onClick={() => setCustomMode(true)}
-                    className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-base-content/20 px-4 py-3 text-xs font-semibold text-base-content/75 transition hover:border-primary hover:text-primary"
-                  >
-                    <UserPlus size={16} />
-                    Use another Google account
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleCustomGoogleSubmit} className="mt-5 space-y-3.5">
-                  <div>
-                    <label
-                      htmlFor="google-custom-name"
-                      className="mb-1 block text-xs font-semibold"
-                    >
-                      Your Full Name
-                    </label>
-                    <input
-                      id="google-custom-name"
-                      type="text"
-                      value={customName}
-                      onChange={(e) => setCustomName(e.target.value)}
-                      placeholder="e.g., Sumaiya Afroze"
-                      required
-                      className="field"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="google-custom-email"
-                      className="mb-1 block text-xs font-semibold"
-                    >
-                      Google Email Address
-                    </label>
-                    <input
-                      id="google-custom-email"
-                      type="email"
-                      value={customEmail}
-                      onChange={(e) => setCustomEmail(e.target.value)}
-                      placeholder="you@gmail.com"
-                      required
-                      className="field"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setCustomMode(false)}
-                      className="btn-outline-brand btn-sm"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={Boolean(signingInEmail)}
-                      className="btn-brand btn-brand-sm"
-                    >
-                      {signingInEmail && <Loader2 size={15} className="animate-spin" />}
-                      Continue with Google
-                    </button>
-                  </div>
-                </form>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {typeof document !== "undefined" ? createPortal(modalContent, document.body) : null}
     </>
   );
 }

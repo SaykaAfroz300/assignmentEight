@@ -19,6 +19,18 @@ function toIdString(val: unknown): string {
   return String(val ?? "");
 }
 
+function toComparable(val: unknown): number {
+  if (val instanceof Date) return val.getTime();
+  if (typeof val === "number") return val;
+  if (typeof val === "string") {
+    const n = Number(val);
+    if (!Number.isNaN(n)) return n;
+    const d = Date.parse(val);
+    if (!Number.isNaN(d)) return d;
+  }
+  return Number(val);
+}
+
 function matchCondition(doc: Record<string, unknown>, cond: Record<string, unknown>): boolean {
   for (const [key, expected] of Object.entries(cond)) {
     if (key === "$and" && Array.isArray(expected)) {
@@ -66,10 +78,10 @@ function matchCondition(doc: Record<string, unknown>, cond: Record<string, unkno
         continue;
       }
       if ("$ne" in ops && toIdString(actual) === toIdString(ops.$ne)) return false;
-      if ("$gt" in ops && !(Number(actual) > Number(ops.$gt))) return false;
-      if ("$gte" in ops && !(Number(actual) >= Number(ops.$gte))) return false;
-      if ("$lt" in ops && !(Number(actual) < Number(ops.$lt))) return false;
-      if ("$lte" in ops && !(Number(actual) <= Number(ops.$lte))) return false;
+      if ("$gt" in ops && !(toComparable(actual) > toComparable(ops.$gt))) return false;
+      if ("$gte" in ops && !(toComparable(actual) >= toComparable(ops.$gte))) return false;
+      if ("$lt" in ops && !(toComparable(actual) < toComparable(ops.$lt))) return false;
+      if ("$lte" in ops && !(toComparable(actual) <= toComparable(ops.$lte))) return false;
     } else if (actual !== expected && toIdString(actual) !== toIdString(expected)) {
       return false;
     }
@@ -115,14 +127,47 @@ function createFallbackAuthDb(): Db {
                     from: string;
                     localField?: string;
                     foreignField?: string;
+                    let?: { localFieldValue?: string };
+                    pipeline?: Record<string, unknown>[];
                     as: string;
                   };
+                  let resolvedLocalField = lk.localField;
+                  let resolvedForeignField = lk.foreignField;
+                  let subLimit: number | undefined;
+
+                  if (!resolvedLocalField && lk.let?.localFieldValue) {
+                    resolvedLocalField = lk.let.localFieldValue.replace(/^\$/, "");
+                  }
+                  if (Array.isArray(lk.pipeline)) {
+                    for (const subStage of lk.pipeline) {
+                      const exprEq = (
+                        (subStage.$match as Record<string, unknown> | undefined)?.$expr as
+                          | Record<string, unknown>
+                          | undefined
+                      )?.$eq;
+                      if (Array.isArray(exprEq)) {
+                        const fieldRef = exprEq.find(
+                          (item) => typeof item === "string" && item.startsWith("$") && !item.startsWith("$$")
+                        );
+                        if (typeof fieldRef === "string") {
+                          resolvedForeignField = fieldRef.replace(/^\$/, "");
+                        }
+                      }
+                      if ("$limit" in subStage) {
+                        subLimit = Number(subStage.$limit);
+                      }
+                    }
+                  }
+
                   const foreignRows = getCol(lk.from);
                   result = result.map((doc) => {
-                    const localVal = toIdString(doc[lk.localField ?? "_id"]);
-                    const matches = foreignRows.filter(
-                      (fr) => toIdString(fr[lk.foreignField ?? "_id"]) === localVal
+                    const localVal = toIdString(doc[resolvedLocalField ?? "_id"]);
+                    let matches = foreignRows.filter(
+                      (fr) => toIdString(fr[resolvedForeignField ?? "_id"]) === localVal
                     );
+                    if (subLimit !== undefined && subLimit > 0) {
+                      matches = matches.slice(0, subLimit);
+                    }
                     return { ...doc, [lk.as]: matches.map((m) => ({ ...m })) };
                   });
                 } else if ("$unwind" in stage) {
